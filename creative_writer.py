@@ -27,23 +27,7 @@ class CreativeWriterEngine:
         self.user_preferences: List[str] = []
     
     def _build_system_prompt(self) -> str:
-        return """You are an expert assistant for creative writers transforming texts.
-
-ABSOLUTE STYLISTIC RULES:
-- Preserve original voice unless explicit deviation is requested
-- Monitored syntax, medium-long sentences, dynamic but not frantic rhythm
-- Precise vocabulary, rich but not ornate
-- ABSOLUTE REJECTION of pathos, rhetoric, clichés, emotional stereotypes
-- DO NOT use: easy tears, declared emotion, clichés, commonplaces
-- DO NOT use words like "incredible", "wonderful", "terrible" without concrete anchor
-- SHOW through precise and meaningful details
-- LET emotion emerge from the situation
-- Give expressive weight to rhythm, syntax, and verb choice
-
-Three mandatory stylistic directions:
-1. SOCIOLOGICAL: emphasis on social context, relationships, structures
-2. EVOCATIVE: atmosphere, images, sensory suggestions
-3. PSYCHODYNAMIC: inner motivations, conflicts, psychological dynamics"""
+        return "You are an expert assistant for creative writers transforming texts.\n\nABSOLUTE STYLISTIC RULES:\n- Preserve original voice unless explicit deviation is requested\n- Monitored syntax, medium-long sentences, dynamic but not frantic rhythm\n- Precise vocabulary, rich but not ornate\n- ABSOLUTE REJECTION of pathos, rhetoric, clichés, emotional stereotypes\n- DO NOT use: easy tears, declared emotion, clichés, commonplaces\n- DO NOT use words like incredible, wonderful, terrible without concrete anchor\n- SHOW through precise and meaningful details\n- LET emotion emerge from the situation\n- Give expressive weight to rhythm, syntax, and verb choice\n\nThree mandatory stylistic directions:\n1. SOCIOLOGICAL: emphasis on social context, relationships, structures\n2. EVOCATIVE: atmosphere, images, sensory suggestions\n3. PSYCHODYNAMIC: inner motivations, conflicts, psychological dynamics"
     
     def _build_user_prompt(self, text: str, user_note: str = "", preference_memory: List[str] = None) -> str:
         preferences = ""
@@ -89,18 +73,18 @@ STRICTLY RETURN THIS FORMAT:
         
         result = response.content[0].text
         
-        sociological = re.search(r'--- VARIANT A: SOCIOLOGICAL ---\n(.*?)\n--- VARIANT B:', result, re.DOTALL)
-        evocative = re.search(r'--- VARIANT B: EVOCATIVE ---\n(.*?)\n--- VARIANT C:', result, re.DOTALL)
-        psychodynamic = re.search(r'--- VARIANT C: PSYCHODYNAMIC ---\n(.*?)\n--- STYLISTIC NOTES ---', result, re.DOTALL)
-        notes = re.search(r'--- STYLISTIC NOTES ---\n(.*?)\n--- GUIDING QUESTIONS ---', result, re.DOTALL)
-        questions = re.search(r'--- GUIDING QUESTIONS ---\n(.*?)$', result, re.DOTALL)
+        sociological = re.search(r"--- VARIANT A: SOCIOLOGICAL ---\n(.*?)\n--- VARIANT B:", result, re.DOTALL)
+        evocative = re.search(r"--- VARIANT B: EVOCATIVE ---\n(.*?)\n--- VARIANT C:", result, re.DOTALL)
+        psychodynamic = re.search(r"--- VARIANT C: PSYCHODYNAMIC ---\n(.*?)\n--- STYLISTIC NOTES ---", result, re.DOTALL)
+        notes = re.search(r"--- STYLISTIC NOTES ---\n(.*?)\n--- GUIDING QUESTIONS ---", result, re.DOTALL)
+        questions = re.search(r"--- GUIDING QUESTIONS ---\n(.*?)$", result, re.DOTALL)
         
         return VariantPack(
             sociological=sociological.group(1).strip() if sociological else "",
             evocative=evocative.group(1).strip() if evocative else "",
             psychodynamic=psychodynamic.group(1).strip() if psychodynamic else "",
             stylistic_notes=notes.group(1).strip() if notes else "",
-            guiding_questions=[q.strip() for q in questions.group(1).split(n) if q.strip()] if questions else []
+            guiding_questions=[q.strip() for q in questions.group(1).split("\n") if q.strip()] if questions else []
         )
     
     def add_preference(self, preference: str):
