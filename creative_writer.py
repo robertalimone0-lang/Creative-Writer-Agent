@@ -48,9 +48,7 @@ Tre direzioni stilistiche obbligatorie:
     def _build_user_prompt(self, text: str, instruction: str) -> str:
         preferences = ""
         if self.user_preferences:
-            preferences = f"\nPreferenze già espresse: {,
-.join(self.user_preferences[-3:])}\n"
-        
+                                 preferences = f"\nPreferenze già espresse: {', '.join(self.user_preferences[-3:])}\n"        
         return f"""{preferences}
 
 TESTO ORIGINALE:
