@@ -3,6 +3,7 @@ from __future__ import annotations
 import anthropic
 import streamlit as st
 import os
+import re
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 
@@ -16,7 +17,6 @@ class VariantPack:
 
 class CreativeWriterEngine:
     def __init__(self):
-        # Legge la chiave API prima dai secrets di Streamlit, poi dall'ambiente'
         try:
             api_key = st.secrets["ANTHROPIC_API_KEY"]
         except:
@@ -27,70 +27,73 @@ class CreativeWriterEngine:
         self.user_preferences: List[str] = []
     
     def _build_system_prompt(self) -> str:
-        return """Sei un assistente esperto nella trasformazione di testi per scrittori creativi.
-        
-REGOLE STILISTICHE ASSOLUTE:
-- Mantieni la voce originale, salvo richiesta esplicita di deviazione
-- Sintassi sorvegliata, frase medio-lunga, ritmo dinamico ma non frenetico
-- Lessico preciso, ricco ma non aulico
-- RIFIUTO ASSOLUTO di patetismo, retorica, cliché, stereotipi emotivi
-- NON usare: lacrime facili, commozione dichiarata, frasi fatte, luoghi comuni
-- NON usare parole come "incredibile", "meraviglioso", "terribile" senza ancora concreta
-- MOSTRA attraverso dettagli precisi e significativi
-- LASCIA emergere l'emozione dalla situazione
-- Affida peso espressivo a ritmo, sintassi e scelta verbale
+        return """You are an expert assistant for creative writers transforming texts.
 
-Tre direzioni stilistiche obbligatorie:
-1. SOCIOLOGICA: enfasi su contesto sociale, relazioni, strutture
-2. EVOCATIVA: atmosfera, immagini, suggestioni sensoriali
-3. PSICODINAMICA: motivazioni interiori, conflitti, dinamiche psicologiche"""
+ABSOLUTE STYLISTIC RULES:
+- Preserve original voice unless explicit deviation is requested
+- Monitored syntax, medium-long sentences, dynamic but not frantic rhythm
+- Precise vocabulary, rich but not ornate
+- ABSOLUTE REJECTION of pathos, rhetoric, clichés, emotional stereotypes
+- DO NOT use: easy tears, declared emotion, clichés, commonplaces
+- DO NOT use words like "incredible", "wonderful", "terrible" without concrete anchor
+- SHOW through precise and meaningful details
+- LET emotion emerge from the situation
+- Give expressive weight to rhythm, syntax, and verb choice
+
+Three mandatory stylistic directions:
+1. SOCIOLOGICAL: emphasis on social context, relationships, structures
+2. EVOCATIVE: atmosphere, images, sensory suggestions
+3. PSYCHODYNAMIC: inner motivations, conflicts, psychological dynamics"""
     
-    def _build_user_prompt(self, text: str, instruction: str) -> str:
+    def _build_user_prompt(self, text: str, user_note: str = "", preference_memory: List[str] = None) -> str:
         preferences = ""
-        if self.user_preferences:
-                                 preferences = f"\nPreferenze già espresse: {', '.join(self.user_preferences[-3:])}\n"        
-        return f"""{preferences}
+        if preference_memory and len(preference_memory) > 0:
+            preferences = f"\nPreferences already expressed: {,
+.join(preference_memory[-3:])}\n"
+        
+        user_note_text = f"\nUSER NOTE:\n{user_note}\n" if user_note else ""
+        
+        return f"""{preferences}{user_note_text}
 
-TESTO ORIGINALE:
+ORIGINAL TEXT:
 "{text}"
 
-ISTRUZIONI DELL'UTENTE:
-{instruction if instruction else "Trasforma il testo nelle tre varianti stilistiche"}
+INSTRUCTIONS:
+Transform the text into the three stylistic variants
 
-RESTITUISCI STRETTAMENTE QUESTO FORMATO:
---- VARIANTE A: SOCIOLOGICA ---
-[testo trasformato]
+STRICTLY RETURN THIS FORMAT:
+--- VARIANT A: SOCIOLOGICAL ---
+[transformed text]
 
---- VARIANTE B: EVOCATIVA ---
-[testo trasformato]
+--- VARIANT B: EVOCATIVE ---
+[transformed text]
 
---- VARIANTE C: PSICODINAMICA ---
-[testo trasformato]
+--- VARIANT C: PSYCHODYNAMIC ---
+[transformed text]
 
---- NOTE STILISTICHE ---
-[spiegazione delle scelte]
+--- STYLISTIC NOTES ---
+[explanation of choices]
 
---- DOMANDE GUIDA ---
-[3 domande per approfondire]"""
+--- GUIDING QUESTIONS ---
+[3 questions for further exploration]"""
     
-    def transform(self, text: str, instruction: str = "") -> VariantPack:
+    def transform(self, text: str, user_note: str = "", preference_memory: List[str] = None) -> VariantPack:
         self.conversation_history.append({"role": "user", "content": text})
         
         response = self.client.messages.create(
             model="claude-3-opus-20240229",
             max_tokens=3000,
             system=self._build_system_prompt(),
-            messages=[{"role": "user", "content": self._build_user_prompt(text, instruction)}]
+            messages=[{"role": "user", "content": self._build_user_prompt(text, user_note, preference_memory)}]
         )
         
         result = response.content[0].text
         
-        import re
-        sociological = re.search(r'--- VARIANTE A: SOCIOLOGICA ---\n(.*?)\n--- VARIANTE B:', result, re.DOTALL)
-        evocative = re.search(r'--- VARIANTE B: EVOCATIVA ---\n(.*?)\n--- VARIANTE C:', result, re.DOTALL)
-        psychodynamic = re.search(r'--- VARIANTE C: PSICODINAMICA ---\n(.*?)\n--- NOTE STILISTICHE ---', result, re.DOTALL)
-        notes = re.search(r'--- NOTE STILISTICHE ---\n(.*?)\n--- DOMANDE GUIDA ---', result, re.DOTALL)
-        questions = re.search(r'--- DOMANDE GUIDA ---\n(.*?)$', result, re.DOTALL)
+        sociological = re.search(r'--- VARIANT A: SOCIOLOGICAL ---\n(.*?)\n--- VARIANT B:', result, re.DOTALL)
+        evocative = re.search(r'--- VARIANT B: EVOCATIVE ---\n(.*?)\n--- VARIANT C:', result, re.DOTALL)
+        psychodynamic = re.search(r'--- VARIANT C: PSYCHODYNAMIC ---\n(.*?)\n--- STYLISTIC NOTES ---', result, re.DOTALL)
+        notes = re.search(r'--- STYLISTIC NOTES ---\n(.*?)\n--- GUIDING QUESTIONS ---', result, re.DOTALL)
+        questions = re.search(r'--- GUIDING QUESTIONS ---\n(.*?)$', result, re.DOTALL)
         
         return VariantPack(
             sociological=sociological.group(1).strip() if sociological else "",
@@ -104,4 +107,4 @@ RESTITUISCI STRETTAMENTE QUESTO FORMATO:
         self.user_preferences.append(preference)
     
     def set_working_text(self, text: str):
-        self.conversation_history.append({"role": "assistant", "content": f"Testo di lavoro aggiornato: {text[:200]}..."})
+        self.conversation_history.append({"role": "assistant", "content": f"Working text updated: {text[:200]}..."})
