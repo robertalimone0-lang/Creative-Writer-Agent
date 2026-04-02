@@ -51,3 +51,10 @@ http://127.0.0.1:5000
 
 ## License
 MIT (see LICENSE)
+
+## Deploy on Koyeb (Free)
+1. Create a new **Web Service** from GitHub.
+2. Select this repository.
+3. Use the default buildpack detection.
+4. Start command is already provided via `Procfile`.
+5. Deploy and open the public URL.
