@@ -108,7 +108,7 @@ def paraphrase_text(text: str, tone: str = "neutral", intensity: float = 0.35) -
         result = _apply_evocative(result, rng, note="")
     elif tone == "lyrical":
         result = _apply_lyrical(result, rng, note="")
-    return result
+    return _polish_text(result, preserve_linebreaks=tone == "lyrical")
 
 
 def _stable_rng(text: str) -> random.Random:
@@ -132,21 +132,85 @@ def _clean_spacing(text: str) -> str:
     return text.strip()
 
 
-def _note_mentions(note: str, keywords: set[str]) -> bool:
-    lowered = (note or "").lower()
-    return any(keyword in lowered for keyword in keywords)
+_LANGUAGE_TOOL_READY = False
+_LANGUAGE_TOOL = None
 
 
-def _append_sentence(base: str, sentence: str) -> str:
-    cleaned = base.rstrip()
-    if not cleaned:
-        return sentence
-    if cleaned.endswith((".", "!", "?")):
-        return f"{cleaned} {sentence}"
-    return f"{cleaned}. {sentence}"
+def _get_language_tool():
+    global _LANGUAGE_TOOL_READY, _LANGUAGE_TOOL
+    if _LANGUAGE_TOOL_READY:
+        return _LANGUAGE_TOOL
+    _LANGUAGE_TOOL_READY = True
+    try:
+        import language_tool_python  # type: ignore
+
+        _LANGUAGE_TOOL = language_tool_python.LanguageTool("it")
+    except Exception:
+        _LANGUAGE_TOOL = None
+    return _LANGUAGE_TOOL
 
 
-def _apply_synonyms(text: str, rng: random.Random, intensity: float = 0.2) -> str:
+def _dedupe_adjacent_words(text: str) -> str:
+    return re.sub(r"\b(\w+)(\s+\1\b)+", r"\1", text, flags=re.IGNORECASE)
+
+
+def _split_overlong_sentences(text: str, limit: int = 28) -> str:
+    sentences = _split_sentences(text)
+    refined = []
+    for sentence in sentences:
+        words = re.findall(r"\b[\wÀ-ÿ'-]+\b", sentence)
+        if len(words) > limit:
+            replaced = sentence
+            for sep in [",", ";", ":"]:
+                if sep in replaced:
+                    left, right = replaced.split(sep, 1)
+                    replaced = f"{left.strip()}. {right.strip()}"
+                    break
+            refined.append(replaced)
+        else:
+            refined.append(sentence)
+    return " ".join(refined)
+
+
+def _polish_fragment(text: str) -> str:
+    cleaned = _clean_spacing(text)
+    cleaned = _dedupe_adjacent_words(cleaned)
+    cleaned = _split_overlong_sentences(cleaned)
+
+    tool = _get_language_tool()
+    if tool:
+        try:
+            import language_tool_python  # type: ignore
+
+            matches = tool.check(cleaned)
+            cleaned = language_tool_python.utils.correct(cleaned, matches)
+        except Exception:
+            pass
+    return _clean_spacing(cleaned)
+
+
+def _polish_text(text: str, preserve_linebreaks: bool = False) -> str:
+    if preserve_linebreaks:
+        lines = text.split("\n")
+        polished_lines = []
+        for line in lines:
+            if line.strip():
+                polished_lines.append(_polish_fragment(line))
+            else:
+                polished_lines.append("")
+        return "\n".join(polished_lines).strip()
+
+    paragraphs = _split_paragraphs(text)
+    polished = [_polish_fragment(paragraph) for paragraph in paragraphs if paragraph.strip()]
+    return "\n\n".join(polished).strip()
+
+
+def _apply_synonyms(
+    text: str,
+    rng: random.Random,
+    intensity: float = 0.2,
+    custom: dict[str, list[str]] | None = None,
+) -> str:
     mapping = {
         "molto": ["assai", "decisamente"],
         "grande": ["ampio", "vasto", "notevole"],
@@ -169,6 +233,8 @@ def _apply_synonyms(text: str, rng: random.Random, intensity: float = 0.2) -> st
         "vita": ["esistenza", "quotidiano"],
         "tempo": ["ritmo", "scorrere"],
     }
+    if custom:
+        mapping.update(custom)
     pattern = r"\b(" + "|".join(map(re.escape, mapping.keys())) + r")\b"
 
     def repl(match: re.Match) -> str:
@@ -183,71 +249,54 @@ def _apply_synonyms(text: str, rng: random.Random, intensity: float = 0.2) -> st
 
 
 def _apply_sociological(text: str, rng: random.Random, note: str) -> str:
-    intros = [
-        "Nel tessuto sociale,",
-        "Sul piano collettivo,",
-        "Dentro la trama delle relazioni,",
-        "Nel quadro delle appartenenze,",
-    ]
-
-    paragraphs = _split_paragraphs(text)
-    rewritten: list[str] = []
-    for idx, paragraph in enumerate(paragraphs):
-        sentences = _split_sentences(paragraph)
-        if sentences:
-            sentences[0] = f"{intros[idx % len(intros)]} {sentences[0].lstrip()}"
-        merged = " ".join(sentences)
-        merged = _apply_synonyms(merged, rng, intensity=0.14)
-        rewritten.append(merged)
-    result = "\n\n".join(rewritten)
+    sociological_map = {
+        "gente": ["comunita", "popolazione"],
+        "famiglia": ["nucleo"],
+        "famiglie": ["nuclei"],
+        "borgo": ["centro", "paese"],
+        "paese": ["comune", "centro"],
+        "lavoro": ["occupazione", "impiego"],
+        "tradizione": ["consuetudine"],
+        "rito": ["consuetudine"],
+        "potere": ["autorita"],
+        "classe": ["ceto"],
+    }
+    result = _apply_synonyms(text, rng, intensity=0.2, custom=sociological_map)
+    result = _polish_text(result)
     return _append_note(result, note)
 
 
 def _apply_evocative(text: str, rng: random.Random, note: str) -> str:
-    tails = [
-        "Resta un odore di pioggia sulle pietre.",
-        "Una luce bassa insiste sulle superfici.",
-        "Il dettaglio sensoriale guida la scena.",
-        "La materia del luogo si fa piu presente.",
-    ]
-    paragraphs = _split_paragraphs(text)
-    rewritten = []
-    add_tail = _note_mentions(note, {"atmosfera", "evocativa", "sensoriale", "immagine", "immagini"})
-    for idx, paragraph in enumerate(paragraphs):
-        merged = _apply_synonyms(paragraph, rng, intensity=0.22).rstrip()
-        if add_tail:
-            tail = tails[idx % len(tails)]
-            merged = _append_sentence(merged, tail)
-        rewritten.append(merged)
-    result = "\n\n".join(rewritten)
+    evocative_map = {
+        "luce": ["chiarore", "lume"],
+        "ombra": ["penombra", "oscurita"],
+        "odore": ["profumo", "sentore"],
+        "pioggia": ["scroscio", "acqua"],
+        "vento": ["brezza", "soffio"],
+        "freddo": ["gelo", "rigore"],
+        "calore": ["tepore", "ardore"],
+        "pietre": ["sassi", "rocce"],
+        "cielo": ["volta", "orizzonte"],
+        "umidita": ["vapore", "umore"],
+    }
+    result = _apply_synonyms(text, rng, intensity=0.24, custom=evocative_map)
+    result = _polish_text(result)
     return _append_note(result, note)
 
 
 def _apply_psychodynamic(text: str, rng: random.Random, note: str) -> str:
-    frames = [
-        "Sotto la superficie,",
-        "In controluce,",
-        "Nel punto in cui la paura si annida,",
-        "Nel modo in cui il desiderio insiste,",
-    ]
-    closings = [
-        "Una tensione resta implicita.",
-        "Il conflitto rimane sotto traccia.",
-        "La spinta interiore orienta tutto.",
-    ]
-    paragraphs = _split_paragraphs(text)
-    rewritten = []
-    add_closing = _note_mentions(note, {"conflitto", "psicodin", "tensione", "interiore"})
-    for idx, paragraph in enumerate(paragraphs):
-        sentences = _split_sentences(paragraph)
-        if sentences:
-            sentences[0] = f"{frames[idx % len(frames)]} {sentences[0].lstrip()}"
-        merged = " ".join(sentences).rstrip()
-        if add_closing:
-            closing = closings[idx % len(closings)]
-            merged = _append_sentence(merged, closing)
-        rewritten.append(merged)
-    result = "\n\n".join(rewritten)
+    psychodynamic_map = {
+        "paura": ["timore", "angoscia"],
+        "peso": ["pressione", "gravame"],
+        "colpa": ["rimorso", "debito"],
+        "malessere": ["inquietudine", "sommersione"],
+        "desiderio": ["impulso", "brama"],
+        "tensione": ["attrito", "contrasto"],
+        "sordo": ["sommerso", "muto"],
+        "silenzio": ["ritiro", "sospensione"],
+    }
+    result = _apply_synonyms(text, rng, intensity=0.22, custom=psychodynamic_map)
+    result = _polish_text(result)
     return _append_note(result, note)
 
 
@@ -262,6 +311,7 @@ def _apply_lyrical(text: str, rng: random.Random, note: str) -> str:
             lines.append(f"{cleaned}.")
         rewritten.append("\n".join(lines))
     result = "\n\n".join(rewritten)
+    result = _polish_text(result, preserve_linebreaks=True)
     return _append_note(result, note)
 
 
@@ -278,25 +328,22 @@ def _apply_minimal(text: str, rng: random.Random, note: str) -> str:
     result = ". ".join(shortened)
     if result:
         result += "."
+    result = _polish_text(result)
     return _append_note(result, note)
 
 
 def _apply_dialogic(text: str, rng: random.Random, note: str) -> str:
-    prompts = [
-        "Io penso che",
-        "Io ricordo che",
-        "Io vedo che",
-        "Io sento che",
-    ]
     sentences = _split_sentences(text)
     rewritten = []
-    for idx, sentence in enumerate(sentences):
-        prompt = prompts[idx % len(prompts)]
-        cleaned = sentence.rstrip(".!?")
-        rewritten.append(f"{prompt} {cleaned}.")
-    if rewritten:
-        rewritten.append("E tu, cosa avresti fatto?")
-    result = " ".join(rewritten)
+    for sentence in sentences:
+        cleaned = sentence.strip()
+        if not cleaned:
+            continue
+        if not cleaned.endswith((".", "!", "?")):
+            cleaned += "."
+        rewritten.append(f"- {cleaned}")
+    result = "\n".join(rewritten)
+    result = _polish_text(result, preserve_linebreaks=True)
     return _append_note(result, note)
 
 
