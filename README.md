@@ -6,8 +6,10 @@ It replaces the old Streamlit chat and does not rely on v0 or Next.js.
 ## Features
 - 6 variants: sociological, evocative, psychodynamic, lyrical, minimal, dialogic
 - Upload TXT/MD/PDF/DOCX or paste text directly
+- Import files into the editor (server extraction for PDF/DOCX)
 - Optional Italian linguistic analysis (spaCy)
 - Open resources lookup (Wiktionary + Wikisource)
+- Quick paraphrase with tone control and synonym intensity
 - Structured output plus validation checks
 
 ## Requirements
@@ -38,6 +40,8 @@ http://127.0.0.1:5000
 - `GET /` -> Web UI
 - `POST /api/refine` -> Form-data: `text`, `note`, `include_analysis`, `file`
 - `POST /api/analyze` -> JSON: `{ "text": "..." }`
+- `POST /api/paraphrase` -> JSON: `{ "text": "...", "tone": "neutral|concise|evocative|lyrical", "intensity": 0-1 }`
+- `POST /api/extract` -> Form-data: `file`
 - `GET /api/resources?q=term`
 
 ## Main Files

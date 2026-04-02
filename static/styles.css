@@ -161,7 +161,8 @@ textarea {
 }
 
 textarea,
-input[type="text"] {
+input[type="text"],
+select {
   width: 100%;
   border: 1px solid rgba(34, 27, 22, 0.12);
   border-radius: var(--radius-md);
@@ -183,8 +184,25 @@ input[type="text"] {
   padding: 0 16px;
 }
 
+select {
+  height: 52px;
+  padding: 0 16px;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.range-value {
+  margin-left: 8px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
 textarea:focus,
 input[type="text"]:focus,
+select:focus,
 .file-drop:focus-within {
   outline: none;
   border-color: rgba(30, 91, 79, 0.4);
@@ -231,6 +249,13 @@ input[type="text"]:focus,
 .file-name {
   font-size: 0.92rem;
   color: var(--ink-soft);
+}
+
+.upload-actions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .prompt-bank {
@@ -321,6 +346,22 @@ input[type="text"]:focus,
 .resource-form {
   display: grid;
   gap: 12px;
+}
+
+.paraphrase-form {
+  display: grid;
+  gap: 12px;
+}
+
+.paraphrase-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.utility-result .variant-output {
+  min-height: 160px;
 }
 
 .results-section {

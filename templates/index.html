@@ -76,6 +76,10 @@
                   <span class="file-drop-meta">TXT, MD, PDF, DOCX fino a 8 MB</span>
                 </label>
                 <p id="file-name" class="file-name">Nessun file selezionato.</p>
+                <div class="upload-actions">
+                  <button id="import-file" class="secondary-button" type="button">Importa nel testo</button>
+                </div>
+                <p class="muted-copy">Se il testo e gia incollato, il file non viene letto: usa questo pulsante per sostituirlo.</p>
               </div>
             </div>
 
@@ -114,6 +118,37 @@
 
           <div id="analysis-result" class="utility-result empty-state">
             Nessuna analisi ancora. Genera varianti o premi il pulsante qui sopra.
+          </div>
+
+          <div class="utility-block">
+            <p class="panel-kicker">Strumenti</p>
+            <h2>Parafrasi rapida</h2>
+            <p class="utility-copy">
+              Applica una parafrasi al testo corrente e controlla l'intensita dei sinonimi.
+            </p>
+            <form id="paraphrase-form" class="paraphrase-form">
+              <label class="field">
+                <span class="field-label">Tono</span>
+                <select id="paraphrase-tone" name="tone">
+                  <option value="neutral" selected>Neutro</option>
+                  <option value="concise">Conciso</option>
+                  <option value="evocative">Evocativo</option>
+                  <option value="lyrical">Lirico</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">
+                  Intensita sinonimi
+                  <span id="paraphrase-intensity-value" class="range-value">35%</span>
+                </span>
+                <input id="paraphrase-intensity" name="intensity" type="range" min="0" max="100" value="35">
+              </label>
+              <button id="paraphrase-button" class="secondary-button" type="submit">Genera parafrasi</button>
+            </form>
+          </div>
+
+          <div id="paraphrase-result" class="utility-result empty-state">
+            La parafrasi comparira qui.
           </div>
 
           <form id="resources-form" class="resource-form">

@@ -11,6 +11,7 @@ from creative_writer import (
     VariantPack,
     extract_text_from_docx,
     extract_text_from_pdf,
+    paraphrase_text,
 )
 from italian_tools import ItalianLinguisticStudio
 from open_resources import OpenResourcesHub
@@ -107,6 +108,56 @@ def create_app() -> Flask:
         if not text:
             return jsonify({"error": "Inserisci prima un testo da analizzare."}), 400
         return jsonify(linguistic_studio.analyze_text(text))
+
+    @app.post("/api/paraphrase")
+    def paraphrase() -> Any:
+        payload = request.get_json(silent=True) or {}
+        text = str(payload.get("text", "")).strip()
+        tone = str(payload.get("tone", "neutral")).strip().lower()
+        intensity_raw = payload.get("intensity", 0.35)
+
+        if not text:
+            return jsonify({"error": "Inserisci prima un testo da parafrasare."}), 400
+
+        try:
+            intensity = float(intensity_raw)
+        except (TypeError, ValueError):
+            intensity = 0.35
+
+        allowed_tones = {"neutral", "concise", "evocative", "lyrical"}
+        if tone not in allowed_tones:
+            tone = "neutral"
+
+        result = paraphrase_text(text, tone=tone, intensity=intensity)
+
+        return jsonify(
+            {
+                "text": result,
+                "tone": tone,
+                "intensity": max(0.0, min(1.0, intensity)),
+            }
+        )
+
+    @app.post("/api/extract")
+    def extract() -> Any:
+        uploaded_file = request.files.get("file")
+        if not uploaded_file or not uploaded_file.filename:
+            return jsonify({"error": "Seleziona un file prima di importarlo."}), 400
+
+        try:
+            extracted = _extract_text_from_upload(uploaded_file)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+
+        cleaned = extracted.strip()
+        return jsonify(
+            {
+                "text": cleaned,
+                "characters": len(cleaned),
+                "words": len(cleaned.split()),
+                "source": uploaded_file.filename,
+            }
+        )
 
     @app.get("/api/resources")
     def resources() -> Any:

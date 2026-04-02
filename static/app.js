@@ -19,6 +19,13 @@ const validationList = document.getElementById("validation-list")
 const analysisResult = document.getElementById("analysis-result")
 const resourcesResult = document.getElementById("resources-result")
 const copyStructured = document.getElementById("copy-structured")
+const importFileButton = document.getElementById("import-file")
+const paraphraseForm = document.getElementById("paraphrase-form")
+const paraphraseTone = document.getElementById("paraphrase-tone")
+const paraphraseIntensity = document.getElementById("paraphrase-intensity")
+const paraphraseIntensityValue = document.getElementById("paraphrase-intensity-value")
+const paraphraseButton = document.getElementById("paraphrase-button")
+const paraphraseResult = document.getElementById("paraphrase-result")
 
 function updateCounts() {
   const text = sourceText.value.trim()
@@ -202,6 +209,44 @@ function renderResources(payload) {
   resourcesResult.innerHTML = html
 }
 
+function renderParaphrase(payload) {
+  if (!payload || !payload.text) {
+    paraphraseResult.className = "utility-result empty-state"
+    paraphraseResult.textContent = "Nessuna parafrasi generata."
+    return
+  }
+
+  paraphraseResult.className = "utility-result"
+  paraphraseResult.innerHTML = `
+    <div class="paraphrase-actions">
+      <button class="variant-button" type="button" data-paraphrase-use>Usa come testo</button>
+      <button class="variant-button" type="button" data-paraphrase-copy>Copia testo</button>
+    </div>
+    <div class="variant-output">${escapeHtml(payload.text)}</div>
+  `
+
+  const useButton = paraphraseResult.querySelector("[data-paraphrase-use]")
+  const copyButton = paraphraseResult.querySelector("[data-paraphrase-copy]")
+
+  if (useButton) {
+    useButton.addEventListener("click", () => {
+      sourceText.value = payload.text
+      sourceFile.value = ""
+      fileName.textContent = "Nessun file selezionato."
+      updateCounts()
+      sourceText.focus()
+      setFlash("Parafrasi applicata come nuovo testo di lavoro.", "success")
+    })
+  }
+
+  if (copyButton) {
+    copyButton.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(payload.text)
+      setFlash("Parafrasi copiata negli appunti.", "success")
+    })
+  }
+}
+
 function escapeHtml(text) {
   return String(text)
     .replaceAll("&", "&amp;")
@@ -251,6 +296,44 @@ refineForm.addEventListener("submit", async (event) => {
   }
 })
 
+if (importFileButton) {
+  importFileButton.addEventListener("click", async () => {
+    const file = sourceFile.files?.[0]
+    if (!file) {
+      setFlash("Seleziona un file da importare.", "error")
+      return
+    }
+
+    setLoading(importFileButton, true, "Importo...")
+    const extension = file.name.split(".").pop()?.toLowerCase()
+    const isPlainText = extension === "txt" || extension === "md"
+
+    try {
+      if (isPlainText) {
+        const content = await file.text()
+        sourceText.value = content.trim()
+        updateCounts()
+        setFlash("Testo importato dal file selezionato.", "success")
+        return
+      }
+
+      const formData = new FormData()
+      formData.append("file", file)
+      const payload = await fetchJson("/api/extract", {
+        method: "POST",
+        body: formData,
+      })
+      sourceText.value = payload.text || ""
+      updateCounts()
+      setFlash(`Testo importato da ${payload.source || "file"}.`, "success")
+    } catch (error) {
+      setFlash(error.message || "Errore durante l'importazione.", "error")
+    } finally {
+      setLoading(importFileButton, false, "Importo...")
+    }
+  })
+}
+
 analyzeButton.addEventListener("click", async () => {
   const text = sourceText.value.trim()
   if (!text) {
@@ -295,6 +378,40 @@ resourcesForm.addEventListener("submit", async (event) => {
   }
 })
 
+if (paraphraseForm) {
+  paraphraseForm.addEventListener("submit", async (event) => {
+    event.preventDefault()
+    const text = sourceText.value.trim()
+    if (!text) {
+      setFlash("Inserisci prima un testo da parafrasare.", "error")
+      return
+    }
+
+    const intensityValue = Number(paraphraseIntensity?.value || "35") / 100
+    setLoading(paraphraseButton, true, "Genero...")
+
+    try {
+      const payload = await fetchJson("/api/paraphrase", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text,
+          tone: paraphraseTone?.value || "neutral",
+          intensity: intensityValue,
+        }),
+      })
+      renderParaphrase(payload)
+      setFlash("Parafrasi generata.", "success")
+    } catch (error) {
+      setFlash(error.message || "Errore durante la parafrasi.", "error")
+    } finally {
+      setLoading(paraphraseButton, false, "Genero...")
+    }
+  })
+}
+
 copyStructured.addEventListener("click", async () => {
   if (!structuredOutput.value.trim()) {
     setFlash("Non c'è ancora un output completo da copiare.", "error")
@@ -309,5 +426,11 @@ sourceFile.addEventListener("change", () => {
   const file = sourceFile.files?.[0]
   fileName.textContent = file ? `File selezionato: ${file.name}` : "Nessun file selezionato."
 })
+
+if (paraphraseIntensity && paraphraseIntensityValue) {
+  paraphraseIntensity.addEventListener("input", () => {
+    paraphraseIntensityValue.textContent = `${paraphraseIntensity.value}%`
+  })
+}
 
 updateCounts()
