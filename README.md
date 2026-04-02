@@ -1,56 +1,83 @@
-diff --git a//Users/robertalimone/creative-writer-ai/README.md b//Users/robertalimone/creative-writer-ai/README.md
-new file mode 100644
---- /dev/null
-+++ b//Users/robertalimone/creative-writer-ai/README.md
-@@ -0,0 +1,51 @@
-+# Creative Writer AI (Flask)
-+
-+Creative Writer AI is a lightweight web app to generate six stylistic rewrites of Italian text.
-+It is now a standard Flask app (no Streamlit), with a clean UI, optional linguistic analysis,
-+and open resources search.
-+
-+## Features
-+- 6 variants: sociological, evocative, psychodynamic, lyrical, minimal, dialogic
-+- Upload TXT/MD/PDF/DOCX or paste text directly
-+- Optional Italian linguistic analysis (spaCy)
-+- Open resources lookup (Wiktionary + Wikisource)
-+- Structured output plus validation hints
-+
-+## Requirements
-+- Python 3.11+
-+- Recommended: spaCy + Italian model (optional)
-+
-+Install dependencies:
-+```bash
-+python -m venv venv
-+source venv/bin/activate
-+pip install -r requirements.txt
-+```
-+
-+Optional spaCy model:
-+```bash
-+python -m spacy download it_core_news_sm
-+```
-+
-+## Run
-+```bash
-+venv/bin/python app.py
-+```
-+Then open:
-+```
-+http://127.0.0.1:5000
-+```
-+
-+## API
-+- `GET /` -> Web UI
-+- `POST /api/refine` -> Form-data: `text`, `note`, `include_analysis`, `file`
-+- `POST /api/analyze` -> JSON: `{ "text": "..." }`
-+- `GET /api/resources?q=term`
-+
-+## Notes
-+- Max text length: 120,000 characters
-+- Upload limit: 8 MB
-+- LanguageTool checks require a local server URL
-+
-+## License
-+MIT (see LICENSE)
+# Creative Writer AI (Flask)
+
+Creative Writer AI is a Flask web app that generates six stylistic rewrites of Italian text.
+It replaces the old Streamlit chat with a clean, fast UI, file upload support, and a small
+set of JSON endpoints.
+
+## Identity
+This project focuses on Italian prose with these guiding principles:
+- Preserve the original voice unless an explicit change is requested.
+- Maintain medium-long sentences and a dynamic but not frantic rhythm.
+- Prefer precise vocabulary and avoid rhetorical excess.
+- Avoid pathos, cliches, emotional stereotypes, and empty superlatives.
+- Provide six mandatory stylistic directions: sociological, evocative, psychodynamic,
+  lyrical, minimal, dialogic.
+
+## Experience
+The web app offers:
+- A single workspace to paste text or upload a file (TXT/MD/PDF/DOCX).
+- A director note to steer tone and rhythm.
+- Six variants rendered side-by-side with notes.
+- Optional Italian linguistic analysis (spaCy).
+- Open resources search (Wiktionary + Wikisource).
+- A structured output block and basic validation checks.
+
+## Expected Output Format
+Each transformation returns:
+- `=== VARIANTE SOCIOLOGICA ===`
+- `=== VARIANTE EVOCATIVA ===`
+- `=== VARIANTE PSICODINAMICA ===`
+- `=== VARIANTE LIRICA ===`
+- `=== VARIANTE MINIMALE ===`
+- `=== VARIANTE DIALOGICA ===`
+- `=== DOMANDE GUIDA ===`
+
+## Main Files
+- `README.md`: this file
+- `requirements.txt`: Python dependencies
+- `test.py`: output validator
+- `creative_writer.py`: transformation engine
+- `app.py`: Flask web app and API routes
+- `templates/index.html`: main UI
+- `static/styles.css`, `static/app.js`: UI assets
+- `open_resources.py`: open resources lookup
+- `italian_tools.py`: Italian linguistic analysis
+
+## Open Resources
+The app can consult:
+- Wiktionary for definitions, synonyms, and antonyms.
+- Wikisource for public-domain texts.
+- LanguageTool (optional) when a local server is available.
+- spaCy for Italian NLP, with a lightweight fallback if the model is missing.
+
+Note:
+- "Open access" does not mean all books are allowed.
+- Use public-domain works or properly licensed texts.
+- For contemporary authors, prefer excerpts provided by the writer.
+
+## Quick Start
+```bash
+cd /Users/robertalimone/creative-writer-ai
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python app.py
+```
+Open:
+```
+http://127.0.0.1:5000
+```
+
+Optional spaCy model:
+```bash
+python -m spacy download it_core_news_sm
+```
+
+## API
+- `GET /` -> Web UI
+- `POST /api/refine` -> Form-data: `text`, `note`, `include_analysis`, `file`
+- `POST /api/analyze` -> JSON: `{ "text": "..." }`
+- `GET /api/resources?q=term`
+
+## License
+MIT (see LICENSE)

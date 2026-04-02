@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Creative Writer AI</title>
+    <meta
+      name="description"
+      content="Web app per trasformare testi italiani in sei varianti stilistiche, con analisi linguistica e ricerca su fonti aperte."
+    >
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script defer src="{{ url_for('static', filename='app.js') }}"></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="eyebrow">Creative Writer AI</div>
+        <h1>Una web app di scrittura, senza Streamlit e pronta da far evolvere.</h1>
+        <p class="hero-copy">
+          Incolla un testo o carica un file, indica la direzione che vuoi spingere e confronta sei riscritture:
+          sociologica, evocativa, psicodinamica, lirica, minimale e dialogica.
+        </p>
+        <div class="status-row">
+          <span class="status-pill">Flask app</span>
+          <span class="status-pill">
+            {% if status_payload.analysis_available %}
+              Analisi italiana: {{ status_payload.analysis_model }}
+            {% else %}
+              Analisi italiana opzionale
+            {% endif %}
+          </span>
+          <span class="status-pill">Upload: {{ status_payload.upload_types }}</span>
+        </div>
+      </header>
+
+      <main class="main-layout">
+        <section class="panel editor-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Laboratorio</p>
+              <h2>Testo di lavoro</h2>
+            </div>
+            <div class="counter-strip">
+              <span id="word-count">0 parole</span>
+              <span id="char-count">0 caratteri</span>
+            </div>
+          </div>
+
+          <form id="refine-form" class="editor-form" enctype="multipart/form-data">
+            <label class="field">
+              <span class="field-label">Testo sorgente</span>
+              <textarea
+                id="source-text"
+                name="text"
+                rows="14"
+                placeholder="Incolla qui una scena, una bozza, un capitolo o un saggio da trasformare."
+              ></textarea>
+            </label>
+
+            <div class="editor-secondary-grid">
+              <label class="field">
+                <span class="field-label">Nota di regia</span>
+                <textarea
+                  id="user-note"
+                  name="note"
+                  rows="6"
+                  placeholder="Esempio: più ritmo, meno retorica, mantieni la voce ma spingi l’atmosfera."
+                ></textarea>
+              </label>
+
+              <div class="upload-card">
+                <p class="field-label">Carica un file</p>
+                <label class="file-drop" for="source-file">
+                  <input id="source-file" name="file" type="file" accept=".txt,.md,.pdf,.docx">
+                  <span class="file-drop-title">Trascina oppure scegli un file</span>
+                  <span class="file-drop-meta">TXT, MD, PDF, DOCX fino a 8 MB</span>
+                </label>
+                <p id="file-name" class="file-name">Nessun file selezionato.</p>
+              </div>
+            </div>
+
+            <div class="prompt-bank">
+              <button type="button" class="prompt-chip" data-fill-note="Più ritmo, meno spiegazione.">Più ritmo</button>
+              <button type="button" class="prompt-chip" data-fill-note="Spingi l’atmosfera senza perdere chiarezza.">Più atmosfera</button>
+              <button type="button" class="prompt-chip" data-fill-note="Rendilo più asciutto e preciso.">Più asciutto</button>
+              <button type="button" class="prompt-chip" data-fill-note="Scava meglio il conflitto interiore.">Più conflitto</button>
+              <button type="button" class="prompt-chip" data-fill-note="Mantieni la voce ma alleggerisci la retorica.">Meno retorica</button>
+            </div>
+
+            <div class="form-footer">
+              <label class="toggle">
+                <input id="include-analysis" name="include_analysis" type="checkbox" checked>
+                <span>Analizza anche la struttura italiana</span>
+              </label>
+
+              <button id="submit-button" class="primary-button" type="submit">
+                Genera 6 varianti
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <aside class="panel utility-panel">
+          <div class="utility-block">
+            <p class="panel-kicker">Strumenti</p>
+            <h2>Diagnostica veloce</h2>
+            <p class="utility-copy">
+              Puoi lanciare l’analisi italiana sul testo corrente oppure cercare una voce su Wiktionary e testi su Wikisource.
+            </p>
+            <button id="analyze-button" class="secondary-button" type="button">
+              Analizza il testo corrente
+            </button>
+          </div>
+
+          <div id="analysis-result" class="utility-result empty-state">
+            Nessuna analisi ancora. Genera varianti o premi il pulsante qui sopra.
+          </div>
+
+          <form id="resources-form" class="resource-form">
+            <label class="field">
+              <span class="field-label">Cerca risorse aperte</span>
+              <input
+                id="resource-query"
+                type="text"
+                name="q"
+                placeholder="Esempio: malinconia, Moravia, Lessico famigliare"
+              >
+            </label>
+            <button class="secondary-button" type="submit">Cerca fonti</button>
+          </form>
+
+          <div id="resources-result" class="utility-result empty-state">
+            I risultati lessicali e i testi pubblici compariranno qui.
+          </div>
+        </aside>
+      </main>
+
+      <section class="results-section">
+        <div class="section-heading">
+          <div>
+            <p class="panel-kicker">Output</p>
+            <h2>Sei varianti stilistiche</h2>
+          </div>
+          <div id="flash" class="flash flash-neutral">
+            Nessuna variante generata per ora.
+          </div>
+        </div>
+
+        <div id="result-meta" class="result-meta">
+          Il pannello si popolerà dopo la prima richiesta.
+        </div>
+
+        <div id="variants-grid" class="variants-grid"></div>
+
+        <div class="result-columns">
+          <article class="panel compact-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker">Affinamento</p>
+                <h2>Domande guida</h2>
+              </div>
+            </div>
+            <ol id="questions-list" class="question-list">
+              <li>Le domande per rifinire il testo compariranno qui.</li>
+            </ol>
+          </article>
+
+          <article class="panel compact-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker">Strutturato</p>
+                <h2>Output completo</h2>
+              </div>
+              <button id="copy-structured" class="ghost-button" type="button">Copia tutto</button>
+            </div>
+            <textarea
+              id="structured-output"
+              class="structured-output"
+              readonly
+              placeholder="L’output completo verrà mostrato qui."
+            ></textarea>
+            <div id="validation-list" class="validation-list muted-copy">
+              Nessun controllo eseguito.
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>
