@@ -1,35 +1,53 @@
-# v0-creative-writer
+# Creative Writer AI (Flask)
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+Creative Writer AI is a Flask web app that generates six stylistic rewrites of Italian text.
+It replaces the old Streamlit chat and does not rely on v0 or Next.js.
 
-## Built with v0
+## Features
+- 6 variants: sociological, evocative, psychodynamic, lyrical, minimal, dialogic
+- Upload TXT/MD/PDF/DOCX or paste text directly
+- Optional Italian linguistic analysis (spaCy)
+- Open resources lookup (Wiktionary + Wikisource)
+- Structured output plus validation checks
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+## Requirements
+- Python 3.11+
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_sXFEdDZVsOWl9qnV765oJu6ATmgs)
-
-## Getting Started
-
-First, run the development server:
-
+Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Optional spaCy model:
+```bash
+python -m spacy download it_core_news_sm
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Run
+```bash
+venv/bin/python app.py
+```
+Open:
+```
+http://127.0.0.1:5000
+```
 
-## Learn More
+## API
+- `GET /` -> Web UI
+- `POST /api/refine` -> Form-data: `text`, `note`, `include_analysis`, `file`
+- `POST /api/analyze` -> JSON: `{ "text": "..." }`
+- `GET /api/resources?q=term`
 
-To learn more, take a look at the following resources:
+## Main Files
+- `app.py`: Flask web app and API routes
+- `creative_writer.py`: transformation engine
+- `open_resources.py`: open resources lookup
+- `italian_tools.py`: Italian linguistic analysis
+- `templates/index.html`: main UI
+- `static/styles.css`, `static/app.js`: UI assets
+- `test.py`: output validator
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
-
-<a href="https://v0.app/chat/api/kiro/clone/naranjapzero-bit/v0-creative-writer" alt="Open in Kiro"><img src="https://pdgvvgmkdvyeydso.public.blob.vercel-storage.com/open%20in%20kiro.svg?sanitize=true" /></a>
+## License
+MIT (see LICENSE)
